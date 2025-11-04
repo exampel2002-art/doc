@@ -1,0 +1,83 @@
+#include <stdio.h>
+
+int mutex = 1;      // Binary semaphore for mutual exclusion(here its 1 meaning unlocked the buffer can be accessed)
+int full = 0;       // Number of full slots
+int empty;          // Number of empty slots
+int n;              // Buffer size
+int buffer[10];     // Shared buffer
+int in = 0, out = 0; // Index pointers
+
+int wait(int s) { return (--s); }
+/*
+so wait() is for say when s=1 its unlocked and user can use but
+now its accessed s has to be 0 to indicate it occupied and thus becomes locked
+thus -- to decrement from 1 to 0 and 0 to -1 so you have entered the wait zone but cannot acces and are waiting
+*/
+
+int signal(int s) { return (++s); }
+// to give a signal so when s goes from 0 to 1 its unlocked and now buffer is free to use again
+
+void producer(int item) {
+    mutex = wait(mutex);//lock
+    empty = wait(empty);//decrement the empty count coz now one less free slot
+    full = signal(full);//increment full coz now one more slot occupied
+
+    buffer[in] = item;//insert the item
+    in = (in + 1) % n;//move aage
+
+    printf("Producer produced: %d\n", item);
+
+    mutex = signal(mutex);//unlock
+}
+
+void consumer() {
+    mutex = wait(mutex);//lock
+    full = wait(full);//decrement now one less full slot
+    empty = signal(empty);//increment one more empty slot
+
+    int item = buffer[out];//remove the item
+    out = (out + 1) % n;//move 
+
+    printf("Consumer consumed: %d\n", item);
+
+    mutex = signal(mutex);//unlock
+}
+
+int main() {
+    int item, choice;
+    printf("Enter the size of buffer (max 10): ");
+    scanf("%d", &n);
+    empty = n;
+
+    while (1) {
+        printf("\n1. Produce an item\n2. Consume an item\n3. Exit\nEnter your choice: ");
+        scanf("%d", &choice);
+
+        switch (choice) {
+            case 1:
+                if ((mutex == 1) && (empty != 0)) {
+                    printf("Enter item to produce: ");
+                    scanf("%d", &item);
+                    producer(item);
+                } else {
+                    printf("Buffer full or busy! Try again.\n");
+                }
+                break;
+
+            case 2:
+                if ((mutex == 1) && (full != 0)) {
+                    consumer();
+                } else {
+                    printf("Buffer empty or busy! Try again.\n");
+                }
+                break;
+
+            case 3:
+                printf("Exiting...\n");
+                return 0;
+
+            default:
+                printf("Invalid choice! Try again.\n");
+        }
+    }
+}
